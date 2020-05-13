@@ -13,6 +13,7 @@ RUN set -eux; \
   libpng-dev \
   libzip-dev \
   postgresql-dev \
+  unzip \
   ; \
   \
   docker-php-ext-configure gd \
