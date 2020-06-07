@@ -6,6 +6,7 @@ FROM php:7.4-fpm-alpine
 RUN set -eux; \
   \
   apk add --no-cache --virtual .build-deps \
+  $PHPIZE_DEPS \
   coreutils \
   freetype-dev \
   libjpeg-turbo-dev \
@@ -24,6 +25,13 @@ RUN set -eux; \
   pdo_mysql \
   pdo_pgsql \
   zip \
+  ; \
+  pecl install \
+  apcu-5.1.18 \
+  ; \
+  pecl clear-cache; \
+  docker-php-ext-enable \
+  apcu \
   ; \
   \
   runDeps="$( \
