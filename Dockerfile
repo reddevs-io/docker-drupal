@@ -53,5 +53,3 @@ RUN chmod +x drush.phar \
     && mv drush.phar /usr/local/bin/drush
 
 COPY .docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache-recommended.ini
-
-WORKDIR /srv/drupal
