@@ -7,6 +7,7 @@ FROM php:7.3-fpm-alpine
 RUN set -eux; \
   \
   apk add --no-cache --virtual .build-deps \
+  $PHPIZE_DEPS \
   coreutils \
   freetype-dev \
   libjpeg-turbo-dev \
@@ -29,6 +30,13 @@ RUN set -eux; \
   pdo_pgsql \
   zip \
   ; \
+  pecl install \
+  apcu-5.1.18 \
+  ; \
+  pecl clear-cache; \
+  docker-php-ext-enable \
+  apcu \
+  ; \
   \
   runDeps="$( \
   scanelf --needed --nobanner --format '%n#p' --recursive /usr/local \
@@ -49,5 +57,3 @@ RUN chmod +x drush.phar \
     && mv drush.phar /usr/local/bin/drush
 
 COPY .docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache-recommended.ini
-
-WORKDIR /srv/drupal
