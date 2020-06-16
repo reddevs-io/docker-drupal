@@ -1,12 +1,12 @@
-
 # from https://www.drupal.org/docs/8/system-requirements/drupal-8-php-requirements
-FROM php:7.3-fpm-alpine
+FROM php:7.4-fpm-alpine
 
 # install the PHP extensions we need
 # postgresql-dev is needed for https://bugs.alpinelinux.org/issues/3642
 RUN set -eux; \
   \
   apk add --no-cache --virtual .build-deps \
+  $PHPIZE_DEPS \
   coreutils \
   freetype-dev \
   libjpeg-turbo-dev \
@@ -16,10 +16,7 @@ RUN set -eux; \
   unzip \
   ; \
   \
-  docker-php-ext-configure gd \
-  --with-freetype-dir=/usr/include \
-  --with-jpeg-dir=/usr/include \
-  --with-png-dir=/usr/include \
+  docker-php-ext-configure gd --with-freetype --with-jpeg \
   ; \
   \
   docker-php-ext-install -j "$(nproc)" \
@@ -28,6 +25,13 @@ RUN set -eux; \
   pdo_mysql \
   pdo_pgsql \
   zip \
+  ; \
+  pecl install \
+  apcu-5.1.18 \
+  ; \
+  pecl clear-cache; \
+  docker-php-ext-enable \
+  apcu \
   ; \
   \
   runDeps="$( \
@@ -49,5 +53,3 @@ RUN chmod +x drush.phar \
     && mv drush.phar /usr/local/bin/drush
 
 COPY .docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache-recommended.ini
-
-WORKDIR /srv/drupal
