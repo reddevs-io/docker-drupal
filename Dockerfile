@@ -1,47 +1,51 @@
 # from https://www.drupal.org/docs/8/system-requirements/drupal-8-php-requirements
-FROM php:7.4-fpm-alpine
+FROM php:7.4-apache-buster
+# TODO switch to buster once https://github.com/docker-library/php/issues/865 is resolved in a clean way (either in the PHP image or in PHP itself)
 
 # install the PHP extensions we need
-# postgresql-dev is needed for https://bugs.alpinelinux.org/issues/3642
 RUN set -eux; \
-  \
-  apk add --no-cache --virtual .build-deps \
-  $PHPIZE_DEPS \
-  coreutils \
-  freetype-dev \
-  libjpeg-turbo-dev \
-  libpng-dev \
-  libzip-dev \
-  postgresql-dev \
-  unzip \
-  ; \
-  \
-  docker-php-ext-configure gd --with-freetype --with-jpeg \
-  ; \
-  \
-  docker-php-ext-install -j "$(nproc)" \
-  gd \
-  opcache \
-  pdo_mysql \
-  pdo_pgsql \
-  zip \
-  ; \
-  pecl install \
-  apcu-5.1.18 \
-  ; \
-  pecl clear-cache; \
-  docker-php-ext-enable \
-  apcu \
-  ; \
-  \
-  runDeps="$( \
-  scanelf --needed --nobanner --format '%n#p' --recursive /usr/local \
-  | tr ',' '\n' \
-  | sort -u \
-  | awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
-  )"; \
-  apk add --virtual .drupal-phpexts-rundeps $runDeps; \
-  apk del .build-deps
+	\
+	if command -v a2enmod; then \
+		a2enmod rewrite; \
+	fi; \
+	\
+	savedAptMark="$(apt-mark showmanual)"; \
+	\
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+		libfreetype6-dev \
+		libjpeg-dev \
+		libpng-dev \
+		libpq-dev \
+		libzip-dev \
+	; \
+	\
+	docker-php-ext-configure gd \
+		--with-freetype \
+		--with-jpeg=/usr \
+	; \
+	\
+	docker-php-ext-install -j "$(nproc)" \
+		gd \
+		opcache \
+		pdo_mysql \
+		pdo_pgsql \
+		zip \
+	; \
+	\
+# reset apt-mark's "manual" list so that "purge --auto-remove" will remove all build dependencies
+	apt-mark auto '.*' > /dev/null; \
+	apt-mark manual $savedAptMark; \
+	ldd "$(php -r 'echo ini_get("extension_dir");')"/*.so \
+		| awk '/=>/ { print $3 }' \
+		| sort -u \
+		| xargs -r dpkg-query -S \
+		| cut -d: -f1 \
+		| sort -u \
+		| xargs -rt apt-mark manual; \
+	\
+	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+	rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # https://getcomposer.org/doc/03-cli.md#composer-allow-superuser
@@ -53,3 +57,5 @@ RUN chmod +x drush.phar \
     && mv drush.phar /usr/local/bin/drush
 
 COPY .docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache-recommended.ini
+
+WORKDIR /var/www/html
